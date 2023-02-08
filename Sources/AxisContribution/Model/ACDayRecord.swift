@@ -26,7 +26,7 @@
 import SwiftUI
 
 /// The model that defines the row view.
-public class ACData: Equatable {
+public class ACDayRecord: Equatable {
     
     /// Current date.
     public var date: Date
@@ -43,7 +43,7 @@ public class ACData: Equatable {
         self.count = count
     }
     
-    public static func == (lhs: ACData, rhs: ACData) -> Bool {
+    public static func == (lhs: ACDayRecord, rhs: ACDayRecord) -> Bool {
         lhs.date == rhs.date && lhs.count == lhs.count
     }
 }

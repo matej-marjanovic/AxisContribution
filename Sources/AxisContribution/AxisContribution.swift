@@ -44,14 +44,44 @@ enum ACLevel: Int, CaseIterable {
 public struct AxisContribution<B, F>: View where B: View, F: View {
     
     @Environment(\.colorScheme) private var colorScheme
-    @StateObject private var store = ACDataStore()
     
     private var constant: ACConstant = .init()
-    private var sourceDatas: [Date]? = nil
-    private var externalDatas: [[ACData]]? = nil
+    private var sourceDates: [Date]? = nil
+    private var externalDayRecords: [[ACDayRecord]]? = nil
     
-    public var background: ((ACIndexSet?, ACData?) -> B)? = nil
-    public var foreground: ((ACIndexSet?, ACData?) -> F)? = nil
+    var mappedData: [[ACDayRecord]] {
+        guard let sourceDates = sourceDates else {
+            return externalDayRecords!
+        }
+        var weeksOfDaysRecords = [[ACDayRecord]]()
+        var dateWeekly = Date.datesWeekly(from: constant.fromDate, to: constant.toDate)
+        if constant.axisMode == .vertical {
+            dateWeekly = dateWeekly.reversed()
+        }
+        dateWeekly.forEach { date in
+            let dayRecords = date.datesInWeek.map { date -> ACDayRecord in
+                let data = ACDayRecord(date: date, count: getDateCount(sourceDates: sourceDates, date: date))
+                return data
+            }
+            weeksOfDaysRecords.append(dayRecords)
+        }
+        return weeksOfDaysRecords
+    }
+    
+    /// Returns data corresponding to the date you pass in.
+    /// - Parameters:
+    ///   - sourceDates: An array of contributed dates.
+    ///   - date: The date required to return the data.
+    /// - Returns: -
+    private func getDateCount(sourceDates: [Date], date: Date) -> Int {
+        let dates = sourceDates.filter { d in
+            Calendar.current.isDate(d, inSameDayAs: date)
+        }
+        return dates.count
+    }
+    
+    public var background: ((ACIndexSet?, ACDayRecord?) -> B)? = nil
+    public var foreground: ((ACIndexSet?, ACDayRecord?) -> F)? = nil
     
     private var defaultRowSize: CGFloat = 11
     @Namespace private var trailing
@@ -71,30 +101,23 @@ public struct AxisContribution<B, F>: View where B: View, F: View {
                                 }
                         }
                         .contentShape(Rectangle())
-                        .onAppear(perform: {
-                            self.fetch()
-                        })
                     }else {
                         VStack(spacing: 0) {
                             content
                         }
                         .contentShape(Rectangle())
-                        .onAppear(perform: {
-                            self.fetch()
-                        })
                     }
                 }
                 levelView
             }
         }
-        .environmentObject(store)
     }
     
     //MARK: - Properties
     
     /// A content view that displays a grid view.
     private var content: some View {
-        ACGridStack(constant: constant) { indexSet, data in
+        ACGridStack(constant: constant, daysData: mappedData) { indexSet, data in
             getBackgroundView(indexSet, data)
         } foreground: { indexSet, data in
             getForegroundView(indexSet, data)
@@ -146,7 +169,7 @@ public struct AxisContribution<B, F>: View where B: View, F: View {
     ///   - indexSet: The location index information of the row view displayed in the grid.
     ///   - data: The model that defines the row view.
     /// - Returns: -
-    private func getBackgroundView(_ indexSet: ACIndexSet? = nil, _ data: ACData? = nil) -> some View {
+    private func getBackgroundView(_ indexSet: ACIndexSet? = nil, _ data: ACDayRecord? = nil) -> some View {
         Group {
             if let background = background {
                 background(indexSet, data)
@@ -161,7 +184,7 @@ public struct AxisContribution<B, F>: View where B: View, F: View {
     ///   - indexSet: The location index information of the row view displayed in the grid.
     ///   - data: The model that defines the row view.
     /// - Returns: -
-    private func getForegroundView(_ indexSet: ACIndexSet? = nil, _ data: ACData? = nil) -> some View {
+    private func getForegroundView(_ indexSet: ACIndexSet? = nil, _ data: ACDayRecord? = nil) -> some View {
         Group {
             if let foreground = foreground {
                 foreground(indexSet, data)
@@ -171,14 +194,6 @@ public struct AxisContribution<B, F>: View where B: View, F: View {
         }
     }
     
-    /// Fetch data.
-    private func fetch() {
-        if let externalDatas = externalDatas {
-            store.setup(constant: self.constant, external: externalDatas)
-        }else {
-            store.setup(constant: self.constant, source: self.sourceDatas)
-        }
-    }
 }
 
 public extension AxisContribution where B == EmptyView, F == EmptyView {
@@ -189,16 +204,16 @@ public extension AxisContribution where B == EmptyView, F == EmptyView {
     ///   - sourceDates: An array of contributed dates.
     init(constant: ACConstant = .init(), source sourceDates: [Date] = []) {
         self.constant = constant
-        self.sourceDatas = sourceDates
+        self.sourceDates = sourceDates
     }
     
     /// Initializes `AxisContribution`
     /// - Parameters:
     ///   - constant: Settings that define the contribution view.
     ///   - externalDatas: Externally passed data. If data exists, external data takes precedence.
-    init(constant: ACConstant = .init(), external externalDatas: [[ACData]]? = nil) {
+    init(constant: ACConstant = .init(), external externalDatas: [[ACDayRecord]]? = nil) {
         self.constant = constant
-        self.externalDatas = externalDatas
+        self.externalDayRecords = externalDatas
     }
 }
 
@@ -212,10 +227,10 @@ public extension AxisContribution where B : View, F : View {
     ///   - foreground: The view that is the foreground of the row view.
     init(constant: ACConstant = .init(),
          source sourceDates: [Date] = [],
-         @ViewBuilder background: @escaping (ACIndexSet?, ACData?) -> B,
-         @ViewBuilder foreground: @escaping (ACIndexSet?, ACData?) -> F) {
+         @ViewBuilder background: @escaping (ACIndexSet?, ACDayRecord?) -> B,
+         @ViewBuilder foreground: @escaping (ACIndexSet?, ACDayRecord?) -> F) {
         self.constant = constant
-        self.sourceDatas = sourceDates
+        self.sourceDates = sourceDates
         self.background = background
         self.foreground = foreground
     }
@@ -226,18 +241,18 @@ public extension AxisContribution where B : View, F : View {
     ///   - background: The view that is the background of the row view.
     ///   - foreground: The view that is the foreground of the row view.
     ///   - externalDatas: Externally passed data. If data exists, external data takes precedence.
-    init(constant: ACConstant = .init(), external externalDatas: [[ACData]]? = nil,
-         @ViewBuilder background: @escaping (ACIndexSet?, ACData?) -> B,
-         @ViewBuilder foreground: @escaping (ACIndexSet?, ACData?) -> F) {
+    init(constant: ACConstant = .init(), external externalDatas: [[ACDayRecord]]? = nil,
+         @ViewBuilder background: @escaping (ACIndexSet?, ACDayRecord?) -> B,
+         @ViewBuilder foreground: @escaping (ACIndexSet?, ACDayRecord?) -> F) {
         self.constant = constant
         self.background = background
         self.foreground = foreground
-        self.externalDatas = externalDatas
+        self.externalDayRecords = externalDatas
     }
 }
 
 struct AxisContribution_Previews: PreviewProvider {
     static var previews: some View {
-        AxisContribution(constant: .init(), source: [])
+        AxisContribution(constant: .init(), source: [Date(), (Date() - 3600*24*20), (Date() - 3600*24*20), (Date() - 3600*24*20), (Date() - 3600*24*20), (Date() - 3600*24*20), (Date() - 3600*24*21)])
     }
 }

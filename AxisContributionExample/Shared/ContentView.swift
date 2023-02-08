@@ -17,31 +17,45 @@ struct ContentView: View {
     @State private var rowSize: CGFloat = 11
     @State private var rowImageName: String = ""
     
+    @State private var contributionDates: [Date] = []
+    
     var body: some View {
         VStack {
             Spacer()
             // AxisContribution(constant: constant, source: getDates())
-            AxisContribution(constant: constant, source: getDates()) { indexSet, data in
-                if rowImageName.isEmpty {
-                    defaultBackground
-                }else {
-                    background
+            VStack {
+                AxisContribution(constant: constant, source: contributionDates) { indexSet, data in
+                    if rowImageName.isEmpty {
+                        defaultBackground
+                    }else {
+                        background
+                    }
+                } foreground: { indexSet, data in
+                    if rowImageName.isEmpty {
+                        defaultForeground
+                    }else {
+                        foreground
+                    }
                 }
-            } foreground: { indexSet, data in
-                if rowImageName.isEmpty {
-                    defaultForeground
-                }else {
-                    foreground
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(lineWidth: 1)
+                        .fill(Color.gray)
+                        .opacity(0.5)
+                )
+                .frame(maxWidth: 600, maxHeight: 600)
+                Button {
+                    contributionDates.append(getRandomDate())
+                } label: {
+                    Text("Append Random Date")
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.blue.ignoresSafeArea())
+                        .clipShape(Capsule())
                 }
+
             }
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(lineWidth: 1)
-                    .fill(Color.gray)
-                    .opacity(0.5)
-            )
-            .frame(maxWidth: 600, maxHeight: 600)
             
             Spacer()
             Picker("", selection: $rowImageName) {
@@ -64,6 +78,9 @@ struct ContentView: View {
             .pickerStyle(.segmented)
         }
         .padding()
+        .onAppear {
+            contributionDates = getDates()
+        }
     }
     
     private var defaultBackground: some View {
@@ -96,12 +113,16 @@ struct ContentView: View {
     }
     
     private func getDates() -> [Date] {
-        var sequenceDatas = [Date]()
-        for _ in 0..<300 {
+        var sequenceDates = [Date]()
+        for _ in 0..<20 {
             let date = Date.randomBetween(start: Date().dateHalfAyear, end: Date())
-            sequenceDatas.append(date)
+            sequenceDates.append(date)
         }
-        return sequenceDatas
+        return sequenceDates
+    }
+    
+    private func getRandomDate() -> Date {
+        return Date.randomBetween(start: Date().dateHalfAyear, end: Date())
     }
 }
 

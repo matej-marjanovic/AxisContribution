@@ -27,12 +27,11 @@ import SwiftUI
 
 /// A view that represents a grid view.
 struct ACGridStack<B, F>: View where B: View, F: View {
-    
-    @EnvironmentObject private var store: ACDataStore
-    
+        
     let constant: ACConstant
-    var background: ((ACIndexSet?, ACData?) -> B)? = nil
-    var foreground: ((ACIndexSet?, ACData?) -> F)? = nil
+    let daysData: [[ACDayRecord]]
+    var background: ((ACIndexSet?, ACDayRecord?) -> B)? = nil
+    var foreground: ((ACIndexSet?, ACDayRecord?) -> F)? = nil
     
     @State private var rowSize: CGSize = .zero
     @State private var titleWidth: CGFloat = .zero
@@ -40,13 +39,13 @@ struct ACGridStack<B, F>: View where B: View, F: View {
     
     var body: some View {
         content
-            .font(store.constant.font)
+            .font(constant.font)
     }
     
     //MARK: - Properties
     /// Property that displays the grid view.
     private var content: some View {
-        let spacing = store.constant.spacing
+        let spacing = constant.spacing
         return ZStack {
             if constant.axisMode == .horizontal {
                 HStack(alignment: .top, spacing: spacing) {
@@ -61,7 +60,7 @@ struct ACGridStack<B, F>: View where B: View, F: View {
                             .frame(height: rowSize.height)
                             .padding(.top, rowSize.height + spacing * 2)
                     }
-                    ForEach(Array(store.datas.enumerated()), id: \.offset) { column, datas in
+                    ForEach(Array(daysData.enumerated()), id: \.offset) { column, datas in
                         LazyVStack(alignment: .leading, spacing: spacing) {
                             Rectangle()
                                 .fill(Color.clear)
@@ -84,7 +83,7 @@ struct ACGridStack<B, F>: View where B: View, F: View {
                         Text("F")
                             .offset(x: size + (rowSize.width * 5 + spacing * 5))
                     }
-                    ForEach(Array(store.datas.enumerated()), id: \.offset) { column, datas in
+                    ForEach(Array(daysData.enumerated()), id: \.offset) { column, datas in
                         HStack(alignment: .top, spacing: spacing) {
                             Rectangle()
                                 .fill(Color.clear)
@@ -108,7 +107,7 @@ struct ACGridStack<B, F>: View where B: View, F: View {
     ///   - row: The row position index.
     ///   - data: The model that defines the row view.
     /// - Returns: -
-    private func getRowView(column: Int, row: Int, data: ACData) -> some View {
+    private func getRowView(column: Int, row: Int, data: ACDayRecord) -> some View {
         ZStack {
             if data.date.startOfDay > Date().startOfDay {
                 background?(ACIndexSet(column: column, row: row), data)
@@ -127,16 +126,16 @@ struct ACGridStack<B, F>: View where B: View, F: View {
     /// - Returns: -
     private func getMonthTitle(_ column: Int) -> some View {
         ZStack {
-            if !store.datas[0].isEmpty {
+            if !daysData[0].isEmpty {
                 if column >= 1 {
-                    if store.datas[column - 1][0].date.monthTitle != store.datas[column][0].date.monthTitle {
-                        Text(store.datas[column][0].date.monthTitle)
+                    if daysData[column - 1][0].date.monthTitle != daysData[column][0].date.monthTitle {
+                        Text(daysData[column][0].date.monthTitle)
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
                             .takeSize($_titleSize)
                     }
                 }else {
-                    Text(store.datas[column][0].date.monthTitle)
+                    Text(daysData[column][0].date.monthTitle)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                         .takeSize($_titleSize)
@@ -154,13 +153,13 @@ struct ACGridStack<B, F>: View where B: View, F: View {
     private func getOpacity(count: Int) -> CGFloat {
         if count == 0 {
             return ACLevel.zero.opacity
-        }else if ACLevel.first.rawValue * store.constant.levelSpacing >= count {
+        }else if ACLevel.first.rawValue * constant.levelSpacing >= count {
             return ACLevel.first.opacity
-        }else if ACLevel.second.rawValue * store.constant.levelSpacing >= count {
+        }else if ACLevel.second.rawValue * constant.levelSpacing >= count {
             return ACLevel.second.opacity
-        }else if ACLevel.third.rawValue * store.constant.levelSpacing >= count {
+        }else if ACLevel.third.rawValue * constant.levelSpacing >= count {
             return ACLevel.third.opacity
-        }else if ACLevel.fourth.rawValue * store.constant.levelSpacing >= count {
+        }else if ACLevel.fourth.rawValue * constant.levelSpacing >= count {
             return ACLevel.fourth.opacity
         }
         return 1.0
@@ -175,9 +174,11 @@ extension ACGridStack where B : View, F : View {
     ///   - background: The view that is the background of the row view.
     ///   - foreground: The view that is the foreground of the row view.
     init(constant: ACConstant,
-         @ViewBuilder background: @escaping (ACIndexSet?, ACData?) -> B,
-         @ViewBuilder foreground: @escaping (ACIndexSet?, ACData?) -> F) {
+         daysData: [[ACDayRecord]],
+         @ViewBuilder background: @escaping (ACIndexSet?, ACDayRecord?) -> B,
+         @ViewBuilder foreground: @escaping (ACIndexSet?, ACDayRecord?) -> F) {
         self.constant = constant
+        self.daysData = daysData
         self.background = background
         self.foreground = foreground
     }
