@@ -111,6 +111,8 @@ public struct AxisContribution<B, F>: View where B: View, F: View {
                 levelView
             }
         }
+        .animation(.default, value: sourceDates)
+        .animation(.default, value: externalDayRecords)
     }
     
     //MARK: - Properties
